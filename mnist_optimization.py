@@ -1,35 +1,43 @@
+"""
+Fashion MNIST Classification with Tensorflow 2.0 and TF Keras
+Based on https://www.tensorflow.org/beta/tutorials/keras/basic_classification
+"""
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+# TensorFlow and tf.keras
 import tensorflow as tf
-from tensorflow.keras import layers
+from tensorflow import keras
 
-import tensorflow_datasets as tfds
+# Helper libraries
+import numpy as np
+import matplotlib.pyplot as plt
 
-# Construct a tf.data.Dataset
-print("Load MNIST dataset")
-mnist_train, mnist_test = tfds.load(name="mnist", split=["train", "test"])
-print("MNIST dataset loaded")
+print(tf.__version__)
 
-print("Start MNIST processing")
-mnist_train = mnist_train.shuffle(1000).batch(128).prefetch(10)
-"""print("Start feature extraction")
-for features in mnist_train.take(1):
-  image, label = features["image"], features["label"]"""
+fashion_mnist = keras.datasets.fashion_mnist
 
+(train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
 
-print(type(mnist_train))
+class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+               'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
-model = tf.keras.Sequential()
-# Adds a densely-connected layer with 64 units to the model:
-model.add(layers.Dense(64, activation='relu'))
-# Add another:
-model.add(layers.Dense(64, activation='relu'))
-# Add a softmax layer with 10 output units:
-model.add(layers.Dense(10, activation='softmax'))
+train_images = train_images / 255.0
 
-print("Compiling model...")
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
-print("Model compiled!")
+test_images = test_images / 255.0
 
-print("Start model training")
-model.fit(mnist_train, epochs=10, verbose=1)
+model = keras.Sequential([
+    keras.layers.Flatten(input_shape=(28, 28)),
+    keras.layers.Dense(16, activation='relu'),
+    keras.layers.Dense(10, activation='softmax')
+])
+
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.fit(train_images, train_labels, epochs=10)
+
+test_loss, test_acc = model.evaluate(test_images, test_labels)
+
+print('\nTest accuracy:', test_acc)
