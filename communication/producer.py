@@ -1,7 +1,7 @@
 import pika
 
 credentials = pika.PlainCredentials('guest', 'guest')
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', credentials=credentials))
+connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', credentials=credentials, port=32775))
 channel = connection.channel()
 channel.queue_declare(queue='test')
 channel.basic_publish(exchange='', routing_key='test',

@@ -2,7 +2,7 @@ import pika
 import time 
 
 credentials = pika.PlainCredentials('guest', 'guest')
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', credentials=credentials))
+connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', credentials=credentials, port=32775))
 channel = connection.channel()
 
 for method_frame, properties, body in channel.consume('test'):
