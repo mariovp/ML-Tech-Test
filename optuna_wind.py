@@ -59,6 +59,7 @@ from optuna.storages import BaseStorage  # NOQA
 from optuna.structs import TrialState
 
 class RepeatPruner(BasePruner):
+    # Based on https://github.com/Minyus/optkeras/blob/master/optkeras/optkeras.py
     
     def prune(self, study, trial):
 
@@ -78,7 +79,7 @@ class RepeatPruner(BasePruner):
 
         # Assert that current trial is running
         assert all_trials[-1].state == TrialState.RUNNING
-        
+
         # Extract params from previously completed trials
         completed_params_list = \
             [t.params for t in all_trials \
