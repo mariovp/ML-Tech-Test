@@ -32,15 +32,25 @@ class PodiumOptimizationPoC(object):
         self.train_images = self.train_images / 255.0
         self.test_images = self.test_images / 255.0
 
+        print("Shape of train_images: ", self.train_images.shape)
+
     def evaluate_params(self, trial: optuna.Trial):
 
         params = dict()
 
-        params['l1_units'] = trial.suggest_categorical('l1_units', [2, 4, 8, 16, 32, 64])
-        params['l1_activation'] = trial.suggest_categorical('l1_activation', ['relu', 'sigmoid', 'linear'])
+        params['model_type'] = trial.suggest_categorical('model_type', ['dnn', 'cnn'])
 
-        params['l2_units'] = trial.suggest_categorical('l2_units', [2, 4, 8, 16, 32, 64])
-        params['l2_activation'] = trial.suggest_categorical('l2_activation', ['relu', 'sigmoid', 'linear'])
+        if params['model_type'] == 'dnn':
+            params['l1_units'] = trial.suggest_categorical('l1_units', [8, 16, 32, 64])
+            params['l1_activation'] = trial.suggest_categorical('l1_activation', ['relu', 'sigmoid', 'linear'])
+
+            params['l2_units'] = trial.suggest_categorical('l2_units', [8, 16, 32, 64])
+            params['l2_activation'] = trial.suggest_categorical('l2_activation', ['relu', 'sigmoid', 'linear'])
+
+        elif params['model_type'] == 'cnn':
+            params['cnn_l1_filters'] = trial.suggest_categorical('cnn_l1_filters', [8, 16, 32, 64])
+            params['cnn_dense_l1_units'] = trial.suggest_categorical('cnn_dense_l1_units', [8, 16, 32, 64])
+            params['cnn_dense_l2_units'] = trial.suggest_categorical('cnn_dense_l2_units', [8, 16, 32, 64])
 
         if trial.should_prune():
             raise optuna.structs.TrialPruned()
@@ -49,20 +59,36 @@ class PodiumOptimizationPoC(object):
 
     def run_model(self, params, trial_number, n_epochs=1):
 
-        model = keras.Sequential([
-            keras.layers.Flatten(input_shape=(28, 28)),
-            keras.layers.Dense(params['l1_units'], activation=params['l1_activation']),
-            keras.layers.Dense(params['l2_units'], activation=params['l2_activation']),
-            keras.layers.Dense(10, activation='softmax')
-        ])
+        if params['model_type'] == 'dnn':
 
-        model.add
+            model = keras.Sequential([
+                keras.layers.Flatten(input_shape=(28, 28)),
+                keras.layers.Dense(params['l1_units'], activation=params['l1_activation']),
+                keras.layers.Dense(params['l2_units'], activation=params['l2_activation']),
+                keras.layers.Dense(10, activation='softmax')
+            ])
+
+        elif params['model_type'] == 'cnn':
+
+            print('Initializing CNN with params ',params)
+
+            model = keras.Sequential([
+                keras.layers.Reshape(input_shape=(28, 28), target_shape=(28,28,1)),
+                keras.layers.Conv2D(params['cnn_l1_filters'], (3, 3), activation='relu'),
+                keras.layers.MaxPooling2D((2, 2)),
+                #keras.layers.Conv2D(32, (3, 3), activation='relu'),
+                #keras.layers.MaxPooling2D((2, 2)),
+                keras.layers.Flatten(),
+                keras.layers.Dense(params['cnn_dense_l1_units'], activation='relu'),
+                keras.layers.Dense(params['cnn_dense_l2_units'], activation='relu'),
+                keras.layers.Dense(10, activation='softmax')
+            ]) 
 
         model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
-        model.fit(self.train_images, self.train_labels, epochs=n_epochs, batch_size=64)
+        model.fit(self.train_images, self.train_labels, epochs=n_epochs, batch_size=128)
 
         test_loss, test_acc = model.evaluate(self.test_images, self.test_labels)
 
