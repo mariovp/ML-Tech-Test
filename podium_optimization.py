@@ -57,7 +57,7 @@ class PodiumOptimizationPoC(object):
 
         return self.run_model(params, trial.number)
 
-    def run_model(self, params, trial_number, n_epochs=1):
+    def run_model(self, params, trial_number, n_epochs=7):
 
         if params['model_type'] == 'dnn':
 
@@ -110,7 +110,7 @@ class PodiumOptimizationPoC(object):
         print("Full training for best models...")
         for trial in sorted_trials[:3]:
             print(trial.value, trial.params)
-            self.run_model(trial.params, trial.number, n_epochs=20)
+            self.run_model(trial.params, trial.number, n_epochs=50)
 
 
 if __name__ == "__main__":
