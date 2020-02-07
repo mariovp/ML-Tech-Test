@@ -8,31 +8,37 @@ import time
 
 class InceptionV1Module(layers.Layer):
 
-    def __init__(self):
-        super(InceptionV1Module, self).__init__()
+    def __init__(self,
+                 conv1x1_filters=64, conv3x3_reduce_filters=96, conv3x3_filters=128, conv5x5_reduce_filters=16, conv5x5_filters=32, pooling_conv_filters=32,
+                 **kwargs):
+        super(InceptionV1Module, self).__init__(**kwargs)
 
-        print('Initializing Inception module ')
+        self.conv1x1_filters = conv1x1_filters
+        self.conv3x3_reduce_filters = conv3x3_reduce_filters
+        self.conv3x3_filters = conv3x3_filters
+        self.conv5x5_reduce_filters = conv5x5_reduce_filters
+        self.conv5x5_filters = conv5x5_filters
+        self.pooling_conv_filters = pooling_conv_filters
 
         self.conv_1x1 = layers.Conv2D(
-            64, (1, 1), padding='same', activation='relu')
+            conv1x1_filters, (1, 1), padding='same', activation='relu')
 
         self.conv_3x3_1 = layers.Conv2D(
-            96, (1, 1), padding='same', activation='relu')
+            conv3x3_reduce_filters, (1, 1), padding='same', activation='relu')
         self.conv_3x3_2 = layers.Conv2D(
-            128, (3, 3), padding='same', activation='relu')
+            conv3x3_filters, (3, 3), padding='same', activation='relu')
 
         self.conv_5x5_1 = layers.Conv2D(
-            16, (1, 1), padding='same', activation='relu')
+            conv5x5_reduce_filters, (1, 1), padding='same', activation='relu')
         self.conv_5x5_2 = layers.Conv2D(
-            32, (5, 5), padding='same', activation='relu')
+            conv5x5_filters, (5, 5), padding='same', activation='relu')
 
         self.pooling_1 = layers.MaxPooling2D(
             (3, 3), strides=(1, 1), padding='same')
         self.pooling_2 = layers.Conv2D(
-            32, (1, 1), padding='same', activation='relu')
+            pooling_conv_filters, (1, 1), padding='same', activation='relu')
 
     def call(self, inputs):
-        print('Calling Inception module with inputs: ', inputs)
 
         res_conv_1x1 = self.conv_1x1(inputs)
 
@@ -50,11 +56,28 @@ class InceptionV1Module(layers.Layer):
 
         return result
 
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'conv1x1_filters': self.conv1x1_filters,
+            'conv3x3_reduce_filters': self.conv3x3_reduce_filters,
+            'conv3x3_filters': self.conv3x3_filters,
+            'conv5x5_reduce_filters': self.conv5x5_reduce_filters,
+            'conv5x5_filters': self.conv5x5_filters,
+            'pooling_conv_filters': self.pooling_conv_filters
+        })
+        return config
+
+    def from_config(self, cls, config):
+        # raise ValueError("From config")
+        return cls(**config)
+
+
 
 print("Num GPUs Available: ", len(
     tf.config.experimental.list_physical_devices('GPU')))
 
-fashion_mnist = keras.datasets.fashion_mnist
+fashion_mnist = keras.datasets.cifar10
 
 (train_images, train_labels), (test_images,
                                test_labels) = fashion_mnist.load_data()
@@ -69,22 +92,32 @@ class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
 strategy = tf.distribute.MirroredStrategy()
 with strategy.scope():
     model = keras.Sequential([
-        keras.layers.Reshape(input_shape=(28, 28), target_shape=(28, 28, 1)),
-        #keras.layers.InputLayer(input_shape=(28, 28, 1)),
+        # keras.layers.Reshape(input_shape=(28, 28), target_shape=(28, 28, 1)),
+        keras.layers.InputLayer(input_shape=(32, 32, 3)),
         InceptionV1Module(),
-        InceptionV1Module(),
-        keras.layers.Flatten(),
+        keras.layers.BatchNormalization(),
         keras.layers.Dropout(0.3),
-        keras.layers.Dense(256, activation='relu'),
-        keras.layers.Dense(128, activation='relu'),
+        keras.layers.MaxPool2D((2,2)),
+        InceptionV1Module(),
+        keras.layers.BatchNormalization(),
+        keras.layers.Dropout(0.3),
+        keras.layers.MaxPool2D((2,2)),
+        InceptionV1Module(),
+        keras.layers.BatchNormalization(),
+        keras.layers.Dropout(0.3),
+        keras.layers.Conv2D(10, (1, 1), activation='relu'),
+        keras.layers.GlobalAveragePooling2D(),
         keras.layers.Dense(10, activation='softmax')
     ])
 
     model.summary()
-    model.compile(optimizer='adadelta',
+
+    optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001, decay=1e-6)
+
+    model.compile(optimizer=optimizer,
                   loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-    tf.keras.utils.plot_model(
+    """tf.keras.utils.plot_model(
         model,
         to_file='model.png',
         show_shapes=True,
@@ -92,10 +125,10 @@ with strategy.scope():
         rankdir='LR',
         expand_nested=True,
         dpi=96
-    )
+    )"""
 
     start_time = time.time()
-    model.fit(train_images, train_labels, epochs=5, batch_size=512)
+    model.fit(train_images, train_labels, epochs=250, batch_size=128, validation_data=(test_images, test_labels))
     elapsed_seconds = time.time() - start_time
     elapsed_time = time.strftime('%H:%M:%S', time.gmtime(elapsed_seconds))
 
