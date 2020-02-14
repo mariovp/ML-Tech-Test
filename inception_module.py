@@ -22,31 +22,44 @@ class InceptionV1Module(layers.Layer):
 
         self.conv_1x1 = layers.Conv2D(
             conv1x1_filters, (1, 1), padding='same', activation='relu')
+        self.bn_1x1 = layers.BatchNormalization()
 
         self.conv_3x3_1 = layers.Conv2D(
             conv3x3_reduce_filters, (1, 1), padding='same', activation='relu')
         self.conv_3x3_2 = layers.Conv2D(
             conv3x3_filters, (3, 3), padding='same', activation='relu')
+        self.bn_3x3_1 = layers.BatchNormalization()
+        self.bn_3x3_2 = layers.BatchNormalization()
 
         self.conv_5x5_1 = layers.Conv2D(
             conv5x5_reduce_filters, (1, 1), padding='same', activation='relu')
         self.conv_5x5_2 = layers.Conv2D(
             conv5x5_filters, (5, 5), padding='same', activation='relu')
 
+        self.bn_5x5_1 = layers.BatchNormalization()
+        self.bn_5x5_2 = layers.BatchNormalization()
+
         self.pooling_1 = layers.MaxPooling2D(
             (3, 3), strides=(1, 1), padding='same')
         self.pooling_2 = layers.Conv2D(
             pooling_conv_filters, (1, 1), padding='same', activation='relu')
 
+        
+
     def call(self, inputs):
 
         res_conv_1x1 = self.conv_1x1(inputs)
+        res_conv_1x1 = self.bn_1x1(res_conv_1x1)
 
         res_conv_3x3 = self.conv_3x3_1(inputs)
+        res_conv_3x3 = self.bn_3x3_1(res_conv_3x3)
         res_conv_3x3 = self.conv_3x3_2(res_conv_3x3)
+        res_conv_3x3 = self.bn_3x3_2(res_conv_3x3)
 
         res_conv_5x5 = self.conv_5x5_1(inputs)
+        res_conv_5x5 = self.bn_5x5_1(res_conv_5x5)
         res_conv_5x5 = self.conv_5x5_2(res_conv_5x5)
+        res_conv_5x5 = self.bn_5x5_2(res_conv_5x5)
 
         res_pooling = self.pooling_1(inputs)
         res_pooling = self.pooling_2(res_pooling)
@@ -95,26 +108,23 @@ with strategy.scope():
         # keras.layers.Reshape(input_shape=(28, 28), target_shape=(28, 28, 1)),
         keras.layers.InputLayer(input_shape=(32, 32, 3)),
         InceptionV1Module(),
-        keras.layers.BatchNormalization(),
+        keras.layers.MaxPool2D(3, 2, padding="same"),
         keras.layers.Dropout(0.3),
-        keras.layers.MaxPool2D((2,2)),
         InceptionV1Module(),
-        keras.layers.BatchNormalization(),
-        keras.layers.Dropout(0.3),
-        keras.layers.MaxPool2D((2,2)),
+        keras.layers.MaxPool2D(3, 2, padding="same"),
+        keras.layers.Dropout(0.4),
         InceptionV1Module(),
-        keras.layers.BatchNormalization(),
-        keras.layers.Dropout(0.3),
-        keras.layers.Conv2D(10, (1, 1), activation='relu'),
-        keras.layers.GlobalAveragePooling2D(),
+        keras.layers.Dropout(0.5),
+        keras.layers.Flatten(),
         keras.layers.Dense(10, activation='softmax')
     ])
+    # Hasta 85% en Cifar-10 en 85 epochs
 
     model.summary()
 
-    optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001, decay=1e-6)
+    optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.01, decay=1e-6)
 
-    model.compile(optimizer=optimizer,
+    model.compile(optimizer="adam",
                   loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     """tf.keras.utils.plot_model(
@@ -128,7 +138,7 @@ with strategy.scope():
     )"""
 
     start_time = time.time()
-    model.fit(train_images, train_labels, epochs=250, batch_size=128, validation_data=(test_images, test_labels))
+    model.fit(train_images, train_labels, epochs=250, batch_size=256, validation_data=(test_images, test_labels))
     elapsed_seconds = time.time() - start_time
     elapsed_time = time.strftime('%H:%M:%S', time.gmtime(elapsed_seconds))
 
