@@ -31,12 +31,16 @@ for feature_batch, label_batch in wind_batches.take(1):
     print("  {!r:20s}: {}".format(key, value))"""
 
 # Read data
-# wind_dataframe = pd.read_csv(WIND_DATA_PATH, index_col=0, parse_dates=['time'])
-# print(wind_dataframe.info())
+wind_dataframe = pd.read_csv(WIND_DATA_PATH,  usecols=['value'])
+wind_dataframe = wind_dataframe[:20000]
+wind_dataframe = wind_dataframe.clip(lower=0)
+print(wind_dataframe.head())
 
 # Rolling mean and plots
-"""rolling = wind_dataframe.rolling(window=24)
+rolling = wind_dataframe.rolling(window=8)
 rolling_mean = rolling.mean()
+
+rolling_mean.to_csv("wind_timeseries.csv")
 
 wind_dataframe.plot()
 rolling_mean.plot(color='red')
@@ -44,13 +48,13 @@ rolling_mean.plot(color='red')
 wind_dataframe = wind_dataframe.rolling(3).mean()
 print(wind_dataframe)
 
-sns.lineplot(x="time", y="value",
-             data=wind_dataframe)
-plt.show()"""
+#sns.lineplot(x="time", y="value",
+#             data=wind_dataframe)
+plt.show()
 
 # Build TF Dataset
 # wind_dataset = tf.data.Dataset.from_tensor_slices(wind_dataframe.to_numpy())
-wind_dataset = tf.data.Dataset.range(100000)
+"""wind_dataset = tf.data.Dataset.range(100000)
 
 def dense_1_step(batch):
   # Shift features and labels one step relative to each other.
@@ -77,4 +81,4 @@ for example in ds.take(10):
 dense_labels_ds = ds.map(build_pair)
 
 for inputs,labels in dense_labels_ds.take(3):
-  print(inputs.numpy(), "=>", labels.numpy())
+  print(inputs.numpy(), "=>", labels.numpy())"""
